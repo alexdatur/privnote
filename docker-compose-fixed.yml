@@ -34,7 +34,8 @@ services:
       - SMTP_PASS=lczhcgmwjdkjhdww
     networks:
       - privnote
-      - default  # This allows access to external networks for SMTP
+    # Use host networking for SMTP access (alternative solution)
+    # network_mode: host  # Uncomment this line if the bridge solution doesn't work
 
   privnote-db:
     container_name: privnote-db
@@ -51,6 +52,10 @@ services:
 
 networks:
   privnote:
-    external: false
-    name: privnote
-    driver: bridge  # Explicitly set bridge driver for external connectivity
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
