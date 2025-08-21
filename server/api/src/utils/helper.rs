@@ -112,16 +112,30 @@ pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
 
     let creds = Credentials::new(user.to_owned(), pass.to_owned());
 
-    // Open a remote connection to gmail
-    let mailer = SmtpTransport::relay(host.as_str())
-        .unwrap()
-        .credentials(creds)
-        .port(port.parse::<u16>().unwrap())
-        .build();
+    // Настройка TLS: STARTTLS для 587, implicit TLS (wrapper) для 465
+    use lettre::transport::smtp::client::{Tls, TlsParameters};
+    let tls_params = TlsParameters::builder(host.clone()).build().unwrap();
+
+    let mailer = match port.as_str() {
+        "465" => {
+            SmtpTransport::relay(host.as_str())
+                .unwrap()
+                .credentials(creds)
+                .port(465)
+                .tls(Tls::Wrapper(tls_params))
+                .build()
+        }
+        _ => {
+            SmtpTransport::starttls_relay(host.as_str())
+                .unwrap()
+                .credentials(creds)
+                .port(port.parse::<u16>().unwrap())
+                .build()
+        }
+    };
 
     println!("Sending email to: {}", note.notify_email.as_ref().unwrap());
     
-    // Send the email
     match mailer.send(&email) {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
