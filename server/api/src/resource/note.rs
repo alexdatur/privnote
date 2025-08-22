@@ -104,7 +104,7 @@ pub async fn check_note(stae: State<AppState>, Path(id): Path<String>) -> Respon
 
     //check if notes secret is valid
     
-
+    
     return Json(ResponseBody::<bool>::new_data(Some(true))).into_response();
 }
 
@@ -208,7 +208,9 @@ pub async fn get_note(
 
                 let copy_note = note.clone();
                 tokio::spawn(async move {
-                    send_email(&copy_note).await.unwrap();
+                    if let Err(err) = send_email(&copy_note).await {
+                        eprintln!("Error while sending email: {}", err);
+                    }
                 });
             }
         }
@@ -288,7 +290,9 @@ pub async fn delete_note(
         );
 
         tokio::spawn(async move {
-            send_email(&note).await.unwrap();
+            if let Err(err) = send_email(&note).await {
+                eprintln!("Error while sending email: {}", err);
+            }
         });
     }
 
