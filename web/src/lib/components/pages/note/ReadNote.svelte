@@ -18,11 +18,49 @@
     data?.messages?.find(({ path }) => path === 'error')?.message ||
     form?.messages?.find(({ path }) => path === 'error')?.message ||
     '';
-  const body = data?.messages?.find(({ path }) => path === 'body')?.message || '';
+  const body =
+    $page.data?.messages?.find(({ path }) => path === 'body')?.message ||
+    $page.form?.messages?.find(({ path }) => path === 'body')?.message ||
+    '';
+  const manualPasswordMsg =
+    $page.data?.messages?.find(({ path }) => path === 'manual_password')?.message ||
+    $page.form?.messages?.find(({ path }) => path === 'manual_password')?.message ||
+    '';
 
-  const note = data?.data?.id ? data.data : form?.data;
-  const tag = data?.data?.tag || form?.data?.tag;
+  const note = $page.data?.data?.id ? $page.data.data : $page.form?.data;
+  const tag = $page.data?.data?.tag || $page.form?.data?.tag;
   const url = $page.params.id;
+
+  const toString = (v: unknown) => (typeof v === 'string' ? v : '');
+  const errorText = toString(error);
+  const friendlyError =
+    errorText.includes('Wrong note password')
+      ? 'Password incorrect'
+      : errorText.includes('Note not found')
+      ? 'Note destroyed or not found'
+      : '';
+
+  const isNotFound = friendlyError === 'Note destroyed or not found';
+  const isPasswordRoute = $page.url.search?.includes('?/password');
+  const shouldShowPasswordForm = Boolean(
+    (isPasswordRoute ||
+      $page.data?.messages?.some(m => m.path === 'body') ||
+      $page.form?.messages?.some(m => m.path === 'body') ||
+      $page.data?.messages?.some(m => m.path === 'manual_password') ||
+      $page.form?.messages?.some(m => m.path === 'manual_password')) &&
+    !note?.id
+  );
+
+  // Debug logging
+  console.log('ReadNote debug:', {
+    pageData: $page.data,
+    pageForm: $page.form,
+    bodyMessage: body,
+    manualPasswordMessage: manualPasswordMsg,
+    noteId: note?.id,
+    shouldShowPasswordForm,
+    friendlyError
+  });
 </script>
 
 <div class="mt-3 flex items-center justify-start">
@@ -39,7 +77,7 @@
   </div>
 {/if}
 
-{#if body && !note}
+{#if shouldShowPasswordForm}
   <form method="POST" action="?/password">
     <input name="id" type="hidden" value={url} />
     <input name="tag" type="hidden" value={tag} />
@@ -47,14 +85,14 @@
     <h3 class="mb-1 text-xl font-semibold">Manual password</h3>
 
     <div class="flex flex-col justify-between w-full md:w-1/2 space-y-2.5 md:flex-row md:space-x-5 md:space-y-0">
-      <Input {form} type="password" name="manual_password" label="Enter a custom password to encrypt the note" />
+      <Input {form} type="password" name="manual_password" label="Enter password to read the note" />
     </div>
     <Button type="button" text="Proceed" className="!rounded-none mt-4" icon="i-line-md:play-filled" />
   </form>
 {/if}
 
-{#if error && !note?.id}
-  <div class="mb-3 break-all text-red-400">{error}</div>
+{#if error && !note?.id && !shouldShowPasswordForm}
+  <div class="mb-3 break-all text-red-400">{friendlyError || errorText}</div>
 {/if}
 
 {#if note?.note}
@@ -98,4 +136,12 @@
       />
     {/if}
   </form>
+{/if}
+
+{#if !shouldShowPasswordForm && !note?.id}
+  {#if isNotFound}
+    <div class="mt-4">
+      <Button type="a" href="/" text="Go to home" className="!rounded-none" icon="i-line-md:home" />
+    </div>
+  {/if}
 {/if}

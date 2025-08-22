@@ -40,7 +40,14 @@ export const actions = {
         )
       ).body.json();
 
-      return deepMerge(body, body.data?.note ? { messages: messageFactory(body.data?.note) } : {});
+      if (body.data?.note) {
+        return deepMerge(body, { messages: messageFactory(body.data?.note) });
+      }
+
+      // On failure (no note), fetch a fresh captcha tag so the form can resubmit
+      const captcha = await getCsrfToken(options);
+      // Return server messages (e.g., manual_password error) and new captcha tag
+      return deepMerge({ messages: body.messages || [] }, captcha);
     } catch (err) {
       return { messages: [{ message: JSON.stringify(err), path: 'error' }, ...messageFactory(form)] };
     }

@@ -102,6 +102,10 @@ pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
     let user = env::var("SMTP_USER").expect("SMTP_USER is not set in .env file");
     let pass = env::var("SMTP_PASS").expect("SMTP_PASS is not set in .env file");
 
+    println!("SMTP Config: {}:{}", host, port);
+    println!("SMTP User: {}", user);
+    println!("SMTP Pass length: {}", pass.len());
+
     let email = Message::builder()
         .from(format!("Privnote <{}>", user).parse().unwrap())
         .to(note.notify_email.as_ref().unwrap().parse().unwrap())
@@ -109,6 +113,10 @@ pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
         .header(ContentType::TEXT_PLAIN)
         .body(format!("privnote has been read: {}", note.id))
         .unwrap();
+
+    println!("Email built successfully");
+    println!("From: Privnote <{}>", user);
+    println!("To: {}", note.notify_email.as_ref().unwrap());
 
     let creds = Credentials::new(user.to_owned(), pass.to_owned());
 
@@ -119,11 +127,18 @@ pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
         .port(port.parse::<u16>().unwrap())
         .build();
 
+    println!("SMTP transport built successfully");
     println!("Sending email to: {}", note.notify_email.as_ref().unwrap());
     
     // Send the email
     match mailer.send(&email) {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Ok(_) => {
+            println!("Email sent successfully!");
+            Ok(true)
+        },
+        Err(e) => {
+            println!("Failed to send email: {:?}", e);
+            Ok(false)
+        }
     }
 }

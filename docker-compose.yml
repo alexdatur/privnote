@@ -1,35 +1,6 @@
 version: "3.8"
 
 services:
-  # privnote-vpn:
-  #   container_name: privnote-vpn
-  #   restart: always 
-  #   image: qmcgaw/gluetun
-  #   cap_add:
-  #     - NET_ADMIN
-  #   environment:
-  #     - VPN_SERVICE_PROVIDER=mullvad
-  #     - VPN_TYPE=wireguard
-  #     - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
-  #     - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
-  #     - SERVER_CITIES=${SERVER_CITIES}
-
-  privnote-tor:
-    container_name: privnote-tor
-    # network_mode: service:privnote-vpn
-    image: goldy/tor-hidden-service:latest
-    depends_on:
-      - privnote-web
-    networks:
-      - proxy
-    environment:
-        SERVICE2_TOR_SERVICE_VERSION: '3'
-        # hello and again will share the same onion v3 address
-        SERVICE2_TOR_SERVICE_HOSTS: 80:privnote-web:3000
-        # tor v3 address private key base 64 encoded
-        SERVICE2_TOR_SERVICE_KEY: ${TOR_SERVICE_KEY}
-
-
   privnote-web:
     container_name: privnote-web
     hostname: privnote-web
@@ -38,19 +9,9 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "127.0.0.1:3000:3000"
-    expose:
-      - 3000
+      - "3000:3000"
     networks:
-      - proxy
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.privnote-web.rule=Host(`privnote.coding.global`)'
-      - 'traefik.http.middlewares.onionHeader.headers.customresponseheaders.Onion-Location=http://pnotegqaaijd3dpqesxfjplwbxk2z6jnaoha7gqalfwiaajqqtsilcqd.onion/'
-      - 'traefik.http.routers.privnote-web.middlewares=onionHeader@docker'
-      - 'traefik.http.routers.privnote-web.entrypoints=websecure'
-      - 'traefik.http.routers.privnote-web.tls.certresolver=letsencrypt'
-      - 'traefik.http.services.privnote-web.loadbalancer.server.port=3000'
+      - privnote
 
   privnote-server:
     container_name: privnote-server
@@ -59,14 +20,22 @@ services:
       context: server/
       dockerfile: Dockerfile
     restart: always
-    expose:
-      - 4000
     depends_on:
       - privnote-db
     environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+      - DATABASE_URL=postgres://user:pass@privnote-db:5432/privnote
+      - HOST=0.0.0.0
+      - PORT=4000
+      - SALT=JmptB5ZgiaLdob7o
+      - SECRET=YjCyfpzkchTAA9v5
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=yourmail@gmail.com
+      - SMTP_PASS=yourpassword
+#    volumes:
+#      - ./gai.conf:/etc/gai.conf:ro
     networks:
-      - proxy
+      - privnote
 
   privnote-db:
     container_name: privnote-db
@@ -74,14 +43,14 @@ services:
     image: postgres:alpine
     restart: always
     environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_USER=user
+      - POSTGRES_DB=privnote
+      - POSTGRES_HOST_AUTH_METHOD=password
     networks:
-      - proxy
+      - privnote
 
 networks:
-  proxy:
+  privnote:
     external: false
-    name: proxy
+    name: privnote
