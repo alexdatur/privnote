@@ -1,7 +1,6 @@
 Privnote Docker
 
-https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker
-https://img.shields.io/badge/Compose-Ready-2496ED?style=for-the-badge&logo=docker
+[![Docker Pulls](https://img.shields.io/docker/pulls/alexdatur/privnote?style=flat-square&logo=docker)](https://hub.docker.com/r/alexdatur/privnote)
 
 A streamlined Docker deployment of Privnote - self-destructing encrypted notes service. Optimized for stability and production use.
 🚀 Quick Deployment
