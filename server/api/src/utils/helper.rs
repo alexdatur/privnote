@@ -114,31 +114,44 @@ pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
         .body(format!("privnote has been read: {}", note.id))
         .unwrap();
 
-    println!("Email built successfully");
-    println!("From: Privnote <{}>", user);
-    println!("To: {}", note.notify_email.as_ref().unwrap());
-
     let creds = Credentials::new(user.to_owned(), pass.to_owned());
 
-    // Open a remote connection to gmail
-    let mailer = SmtpTransport::relay(host.as_str())
-        .unwrap()
-        .credentials(creds)
-        .port(port.parse::<u16>().unwrap())
-        .build();
+    // Настройка TLS: STARTTLS для 587, implicit TLS (wrapper) для 465
+    use lettre::transport::smtp::client::{Tls, TlsParameters};
+    let tls_params = TlsParameters::builder(host.clone()).build().unwrap();
+    let tls_mode = if port == "465" { "implicit" } else { "starttls" };
+    println!("TLS mode: {}", tls_mode);
+    println!("Building SMTP transport...");
+
+    let mailer = match port.as_str() {
+        "465" => {
+            SmtpTransport::relay(host.as_str())
+                .unwrap()
+                .credentials(creds)
+                .port(465)
+                .tls(Tls::Wrapper(tls_params))
+                .build()
+        }
+        _ => {
+            SmtpTransport::starttls_relay(host.as_str())
+                .unwrap()
+                .credentials(creds)
+                .port(port.parse::<u16>().unwrap())
+                .build()
+        }
+    };
 
     println!("SMTP transport built successfully");
     println!("Sending email to: {}", note.notify_email.as_ref().unwrap());
     
-    // Send the email
     match mailer.send(&email) {
         Ok(_) => {
-            println!("Email sent successfully!");
+            println!("Email sent successfully");
             Ok(true)
-        },
+        }
         Err(e) => {
             println!("Failed to send email: {:?}", e);
-            Ok(false)
+            Err(e.into())
         }
     }
 }
