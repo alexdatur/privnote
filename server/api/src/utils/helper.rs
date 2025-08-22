@@ -97,47 +97,61 @@ pub async fn check_csrf_token(captcha: CsrfToken, state: &State<AppState>) -> Op
 }
 
 pub async fn send_email(note: &note::Model) -> anyhow::Result<bool> {
-    let host = env::var("SMTP_HOST").expect("SMTP_HOST is not set in .env file");
-    let port = env::var("SMTP_PORT").expect("SMTP_PORT is not set in .env file");
-    let user = env::var("SMTP_USER").expect("SMTP_USER is not set in .env file");
-    let pass = env::var("SMTP_PASS").expect("SMTP_PASS is not set in .env file");
+	let host = env::var("SMTP_HOST").expect("SMTP_HOST is not set in .env file");
+	let port = env::var("SMTP_PORT").expect("SMTP_PORT is not set in .env file");
+	let user = env::var("SMTP_USER").expect("SMTP_USER is not set in .env file");
+	let pass = env::var("SMTP_PASS").expect("SMTP_PASS is not set in .env file");
 
-    let email = Message::builder()
-        .from(format!("Privnote <{}>", user).parse().unwrap())
-        .to(note.notify_email.as_ref().unwrap().parse().unwrap())
-        .subject("Your Privnote has been read")
-        .header(ContentType::TEXT_PLAIN)
-        .body(format!("privnote has been read: {}", note.id))
-        .unwrap();
+	println!("SMTP Config: {}:{}", host, port);
+	println!("SMTP User: {}", user);
+	println!("SMTP Pass length: {}", pass.len());
 
-    let creds = Credentials::new(user.to_owned(), pass.to_owned());
+	let email = Message::builder()
+		.from(format!("Privnote <{}>", user).parse().unwrap())
+		.to(note.notify_email.as_ref().unwrap().parse().unwrap())
+		.subject("Your Privnote has been read")
+		.header(ContentType::TEXT_PLAIN)
+		.body(format!("privnote has been read: {}", note.id))
+		.unwrap();
 
-    // Настройка TLS: STARTTLS для 587, implicit TLS (wrapper) для 465
-    use lettre::transport::smtp::client::{Tls, TlsParameters};
-    let tls_params = TlsParameters::builder(host.clone()).build().unwrap();
+	let creds = Credentials::new(user.to_owned(), pass.to_owned());
 
-    let mailer = match port.as_str() {
-        "465" => {
-            SmtpTransport::relay(host.as_str())
-                .unwrap()
-                .credentials(creds)
-                .port(465)
-                .tls(Tls::Wrapper(tls_params))
-                .build()
-        }
-        _ => {
-            SmtpTransport::starttls_relay(host.as_str())
-                .unwrap()
-                .credentials(creds)
-                .port(port.parse::<u16>().unwrap())
-                .build()
-        }
-    };
+	// Настройка TLS: STARTTLS для 587, implicit TLS (wrapper) для 465
+	use lettre::transport::smtp::client::{Tls, TlsParameters};
+	let tls_params = TlsParameters::builder(host.clone()).build().unwrap();
+	let tls_mode = if port == "465" { "implicit" } else { "starttls" };
+	println!("TLS mode: {}", tls_mode);
+	println!("Building SMTP transport...");
 
-    println!("Sending email to: {}", note.notify_email.as_ref().unwrap());
-    
-    match mailer.send(&email) {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
-    }
+	let mailer = match port.as_str() {
+		"465" => {
+			SmtpTransport::relay(host.as_str())
+				.unwrap()
+				.credentials(creds)
+				.port(465)
+				.tls(Tls::Wrapper(tls_params))
+				.build()
+		}
+		_ => {
+			SmtpTransport::starttls_relay(host.as_str())
+				.unwrap()
+				.credentials(creds)
+				.port(port.parse::<u16>().unwrap())
+				.build()
+		}
+	};
+
+	println!("SMTP transport built successfully");
+	println!("Sending email to: {}", note.notify_email.as_ref().unwrap());
+	
+	match mailer.send(&email) {
+		Ok(_) => {
+			println!("Email sent successfully");
+			Ok(true)
+		}
+		Err(e) => {
+			println!("Failed to send email: {:?}", e);
+			Err(e.into())
+		}
+	}
 }

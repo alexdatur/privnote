@@ -208,7 +208,9 @@ pub async fn get_note(
 
                 let copy_note = note.clone();
                 tokio::spawn(async move {
-                    send_email(&copy_note).await.unwrap();
+                    if let Err(err) = send_email(&copy_note).await {
+                        eprintln!("Error while sending email: {}", err);
+                    }
                 });
             }
         }
@@ -288,7 +290,9 @@ pub async fn delete_note(
         );
 
         tokio::spawn(async move {
-            send_email(&note).await.unwrap();
+            if let Err(err) = send_email(&note).await {
+                eprintln!("Error while sending email: {}", err);
+            }
         });
     }
 
